@@ -1,32 +1,55 @@
+
 const mongoose = require('mongoose');
 const Task = require('../models/Task');
 
-// Recupera las tareas desde MongoDB ordenadas por fecha de creación.
-const listTasks = () => Task.find().sort({ createdAt: 1 });
+// Recupera todas las tareas ordenadas por fecha de creación.
+const listTasks = () => {
+    return Task.find().sort({ createdAt: 1 });
+};
 
-// Busca una tarea por su ObjectId si el formato es válido.
+// Busca una tarea por su ObjectId.
 const findTask = (id) => {
-    if (!mongoose.isValidObjectId(id)) return null;  
+    if (!mongoose.isValidObjectId(id)) return null;
+
     return Task.findById(id);
 };
 
-// Crea un nuevo documento Task en MongoDB.
-const createTask = ({title, done = false }) => {
-    return Task.create({ title, done });
-}
-
-// Actualiza solo los campos enviados y devuelve el documento ya modificado.
-const updateTask = (id, {title, done}) => {
-    if (!mongoose.isValidObjectId(id)) return null;
-    const changes = {};
-    if (title !== undefined) changes.title = title;
-    if (done !== undefined) changes.done = done;
-    return Task.findByIdAndUpdate(id, changes, { new: true });
+// Crea una nueva tarea con sus campos.
+const createTask = (data) => {
+    return Task.create(data);
 };
 
-// Elimina una tarea por ObjectId y devuelve el documento eliminado.
+// Actualiza los campos enviados y ejecuta las validaciones.
+const updateTask = (id, data) => {
+    if (!mongoose.isValidObjectId(id)) return null;
+
+    const allowedFields = [
+        'title',
+        'done',
+        'priority',
+        'dueDate',
+        'tags',
+        'minutes'
+    ];
+
+    const changes = {};
+
+    for (const field of allowedFields) {
+        if (data[field] !== undefined) {
+            changes[field] = data[field];
+        }
+    }
+
+    return Task.findByIdAndUpdate(id, changes, {
+        new: true,
+        runValidators: true
+    });
+};
+
+// Elimina una tarea por su ObjectId.
 const removeTask = (id) => {
     if (!mongoose.isValidObjectId(id)) return null;
+
     return Task.findByIdAndDelete(id);
 };
 
