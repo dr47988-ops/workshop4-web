@@ -5,7 +5,9 @@ const {
     findTask,
     createTask,
     updateTask,
-    removeTask
+    removeTask,
+    markTaskDone,
+    getStats
 } = require('../data/tasks');
 
 // Maneja los errores de la base de datos.
@@ -228,11 +230,39 @@ const remove = async (req, res) => {
     }
 };
 
+// Marca una tarea como terminada.
+const markDone = async (req, res) => {
+    try {
+        const task = await markTaskDone(req.params.id);
+
+        if (!task) {
+            return res.status(404).json({
+                error: 'Task not found'
+            });
+        }
+
+        res.json({ data: task });
+    } catch (error) {
+        handleError(error, res);
+    }
+};
+
+// Devuelve las estadísticas de las tareas.
+const stats = async (req, res) => {
+    try {
+        res.json({ data: await getStats() });
+    } catch (error) {
+        handleError(error, res);
+    }
+};
+
 module.exports = {
     list,
     getByTitle,
     getById,
     create,
     update,
-    remove
+    remove,
+    markDone,
+    stats
 };

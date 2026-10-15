@@ -15,9 +15,11 @@ app.get("/", (req, res) => {
             "GET /api/health",
             "GET /api/tasks",
             "GET /api/tasks/by-title?title=Ejemplo",
+            "GET /api/tasks/stats",
             "GET /api/tasks/:id",
             "POST /api/tasks",
             "PUT /api/tasks/:id",
+            "PATCH /api/tasks/:id/done",
             "DELETE /api/tasks/:id",
         ],
     });

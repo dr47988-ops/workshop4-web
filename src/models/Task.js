@@ -60,4 +60,26 @@ taskSchema.virtual('summary').get(function () {
     return `${this.title} - ${this.done ? 'Terminada' : 'Pendiente'}`;
 });
 
+// Método del documento: marca la tarea como terminada y la guarda.
+taskSchema.methods.markDone = function () {
+    this.done = true;
+    return this.save();
+};
+
+// Método estático: devuelve solo las tareas pendientes.
+taskSchema.statics.findPending = function () {
+    return this.find({ done: false });
+};
+
+// Antes de guardar: normaliza el título (minúsculas) y avisa en consola.
+taskSchema.pre('save', function () {
+    this.title = this.title.toLowerCase();
+    console.log(`Guardando tarea: "${this.title}"`);
+});
+
+// Después de guardar: imprime el ID de la tarea guardada.
+taskSchema.post('save', function (doc) {
+    console.log(`Tarea guardada con ID: ${doc._id}`);
+});
+
 module.exports = mongoose.model('Task', taskSchema);

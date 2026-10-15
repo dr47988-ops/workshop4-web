@@ -4,7 +4,9 @@ const Task = require('../models/Task');
 
 // Recupera todas las tareas ordenadas por fecha de creación.
 const listTasks = async ({ filter = {}, sort = { createdAt: 1, _id: 1 }, page = 1, limit = 10, fields } = {}) => {
-    const query = Task.find(filter).sort(sort).skip((page - 1) * limit).limit(limit);
+    // Con ?done=false se usa el método estático findPending().
+    const base = filter.done === false ? Task.findPending().find(filter) : Task.find(filter);
+    const query = base.sort(sort).skip((page - 1) * limit).limit(limit);
     if (fields) query.select(fields);
     // lean conserva exactamente la proyección sin agregar virtuales del modelo.
     const [data, total] = await Promise.all([query.lean(), Task.countDocuments(filter)]);
@@ -67,11 +69,37 @@ const removeTask = (id) => {
     return Task.findByIdAndDelete(id);
 };
 
+// Marca una tarea como terminada con el método del documento markDone().
+const markTaskDone = async (id) => {
+    validateId(id);
+
+    const task = await Task.findById(id);
+    if (!task) return null;
+
+    return task.markDone();
+};
+
+// Calcula cuántas tareas hay pendientes, terminadas y por prioridad.
+const getStats = async () => {
+    const [pending, done, grouped] = await Promise.all([
+        Task.countDocuments({ done: false }),
+        Task.countDocuments({ done: true }),
+        Task.aggregate([{ $group: { _id: '$priority', count: { $sum: 1 } } }])
+    ]);
+
+    const byPriority = { low: 0, medium: 0, high: 0 };
+    for (const { _id, count } of grouped) byPriority[_id] = count;
+
+    return { pending, done, byPriority };
+};
+
 module.exports = {
     listTasks,
     findTaskByTitle,
     findTask,
     createTask,
     updateTask,
-    removeTask
+    removeTask,
+    markTaskDone,
+    getStats
 };
