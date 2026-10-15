@@ -1,3 +1,4 @@
+
 const {
     listTasks,
     findTask,
@@ -6,55 +7,151 @@ const {
     removeTask
 } = require('../data/tasks');
 
-// Responde con la lista completa de tareas disponibles.
+// Maneja los errores de la base de datos.
+const handleError = (error, res) => {
+    if (error.name === 'ValidationError' ||
+        error.name === 'CastError') {
+        return res.status(400).json({
+            error: error.message
+        });
+    }
+
+    console.error(error);
+
+    return res.status(500).json({
+        error: 'Error interno del servidor'
+    });
+};
+
+// Lista todas las tareas.
 const list = async (req, res) => {
-    const data = await listTasks();
-    res.json({ data });
+    try {
+        const data = await listTasks();
+        res.json({ data });
+    } catch (error) {
+        handleError(error, res);
+    }
 };
 
-// Obtiene una tarea por ObjectId y responde 404 si no existe.
+// Busca una tarea por su ID.
 const getById = async (req, res) => {
-    const task = await findTask(req.params.id);
-    if(!task) {
-        return res.status(404).json({ error: 'Task not found' });
+    try {
+        const task = await findTask(req.params.id);
+
+        if (!task) {
+            return res.status(404).json({
+                error: 'Task not found'
+            });
+        }
+
+        res.json({ data: task });
+    } catch (error) {
+        handleError(error, res);
     }
-    res.json({ data: task });
 };
 
-// Valida el cuerpo de la petición y crea una nueva tarea.
+// Crea una nueva tarea.
 const create = async (req, res) => {
-    const { title, done } = req.body ?? {};
-   
-    if (typeof title !== 'string' || title.trim() === '') {
-        return res.status(400).json({ error: 'Invalid title' });
+    try {
+        const {
+            title,
+            done,
+            priority,
+            dueDate,
+            tags,
+            minutes
+        } = req.body ?? {};
+
+        if (typeof title !== 'string' || title.trim() === '') {
+            return res.status(400).json({
+                error: 'El título es obligatorio'
+            });
+        }
+
+        if (done !== undefined && typeof done !== 'boolean') {
+            return res.status(400).json({
+                error: 'El valor de done debe ser booleano'
+            });
+        }
+
+        const task = await createTask({
+            title,
+            done,
+            priority,
+            dueDate,
+            tags,
+            minutes
+        });
+
+        res.status(201).json({ data: task });
+
+    } catch (error) {
+        handleError(error, res);
     }
-   const task = await createTask({ title, done });
-   res.status(201).json({ data: task });
 };
 
-// Actualiza una tarea existente si el id existe y los datos son válidos.
+// Actualiza una tarea existente.
 const update = async (req, res) => {
-    const { title, done } = req.body ?? {};
-    if (typeof title !== 'string' || title.trim() === '') {
-        return res.status(400).json({ error: 'Invalid title' });
+    try {
+        const {
+            title,
+            done,
+            priority,
+            dueDate,
+            tags,
+            minutes
+        } = req.body ?? {};
+
+        if (title !== undefined &&
+            (typeof title !== 'string' || title.trim() === '')) {
+            return res.status(400).json({
+                error: 'El título no es válido'
+            });
+        }
+
+        if (done !== undefined && typeof done !== 'boolean') {
+            return res.status(400).json({
+                error: 'El valor de done debe ser booleano'
+            });
+        }
+
+        const task = await updateTask(req.params.id, {
+            title,
+            done,
+            priority,
+            dueDate,
+            tags,
+            minutes
+        });
+
+        if (!task) {
+            return res.status(404).json({
+                error: 'Task not found'
+            });
+        }
+
+        res.json({ data: task });
+
+    } catch (error) {
+        handleError(error, res);
     }
-    if( done !== undefined && typeof done !== 'boolean') {
-        return res.status(400).json({ error: 'Invalid done value' });
-    }
-    const task = await updateTask(req.params.id, { title, done });
-    if (!task) {
-        return res.status(404).json({ error: 'Task not found' });
-    }
-    res.json({ data: task });
 };
 
-// Elimina una tarea por ObjectId y devuelve 404 cuando no existe.
+// Elimina una tarea.
 const remove = async (req, res) => {
-    const task = await removeTask(req.params.id);
-    if (!task) {
-        return res.status(404).json({ error: 'Task not found' });
+    try {
+        const task = await removeTask(req.params.id);
+
+        if (!task) {
+            return res.status(404).json({
+                error: 'Task not found'
+            });
+        }
+
+        res.json({ data: task });
+    } catch (error) {
+        handleError(error, res);
     }
-    res.json({ data: task });
 };
 
 module.exports = {
@@ -63,4 +160,4 @@ module.exports = {
     create,
     update,
     remove
-}
+};
