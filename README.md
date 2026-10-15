@@ -4,7 +4,7 @@ API REST construida con Express y MongoDB para gestionar tareas. El proyecto est
 
 ## Requisitos
 
-- Node.js 18 o superior
+- Node.js 20.19 o superior (requerido por Mongoose 9)
 - npm 9 o superior
 - Una base de datos MongoDB accesible desde `MONGODB_URI`
 
@@ -152,7 +152,7 @@ Funciones y propósito:
 
 Funciones y propósito:
 
-- `list(req, res)`: obtiene todas las tareas desde la capa de datos y responde con `{ data: [...] }`.
+- `list(req, res)`: obtiene todas las tareas desde la capa de datos y responde con `{ data: [...], total }`.
 - `getById(req, res)`: busca una tarea por `ObjectId`; si no existe responde `404`, si existe responde la tarea.
 - `create(req, res)`: valida `title`, crea una tarea nueva y responde `201 Created`.
 - `update(req, res)`: valida `title` y `done`, actualiza la tarea por `ObjectId` y responde `404` si no existe.
@@ -162,7 +162,7 @@ Validaciones implementadas:
 
 - `title` debe ser un texto no vacío.
 - `done`, si se envía, debe ser un booleano.
-- El formato del `id` se valida en la capa de datos con `mongoose.isValidObjectId(id)`.
+- El formato del `id` se valida en la capa de datos con `mongoose.isObjectIdOrHexString(id)`.
 
 ### `src/data/tasks.js`
 
@@ -337,3 +337,39 @@ Cuando la aplicación se conecta a MongoDB por primera vez y la colección de ta
 - `Sample Task 2`
 
 Esto ocurre en `src/db.js` y facilita probar la API sin cargar datos manualmente.
+## Consultas y CRUD (puntos 4 y 5)
+
+`GET /api/tasks` devuelve `{ "data": [...], "total": 0 }`. `total` cuenta todos los documentos que cumplen los filtros antes de paginar. El listado usa documentos con `_id`; las respuestas individuales conservan la transformación existente del modelo (`id` y `summary`).
+
+| Parámetro | Uso |
+| --- | --- |
+| `done` | `true` o `false` |
+| `priority` | `low`, `medium`, `high` |
+| `search` | Texto literal contenido en el título, sin distinguir mayúsculas |
+| `tag` | Coincidencia exacta en el arreglo `tags` |
+| `minMinutes` | Minutos mínimos, inclusive; número no negativo |
+| `sort` | Campos separados por comas; prefijo `-` para descendente. Ejemplo: `-minutes,title` |
+| `limit` | Tamaño de página; entero positivo, por defecto 10 |
+| `page` | Página desde 1; por defecto 1 |
+| `fields` | Campos separados por comas. Solo incluye los indicados, incluso `_id` debe solicitarse |
+
+Campos permitidos en `sort` y `fields`: `_id,title,done,priority,dueDate,tags,minutes,createdAt,updatedAt`. Orden predeterminado: `createdAt` ascendente; `_id` desempata para estabilizar las páginas. Los filtros se combinan con AND. Parámetros inválidos responden 400.
+
+Ejemplo: `/api/tasks?done=false&priority=high&search=express&tag=clase&minMinutes=20&sort=-minutes&limit=5&page=1&fields=title,minutes`.
+
+`GET /api/tasks/by-title?title=Aprender%20Express` busca un título exacto con `findOne`. Esta ruta se registra antes de `/:id`. Los endpoints por ID responden 400 si el ObjectId es inválido y 404 si la tarea no existe. Crear usa `Task.create`, actualizar usa `findByIdAndUpdate` con `new: true` y `runValidators: true`, y eliminar usa `findByIdAndDelete`.
+
+### Pruebas en Postman
+
+Importar `postman/workshop4.postman_collection.json`, iniciar la API con MongoDB y ejecutar la colección en Collection Runner. La variable `baseUrl` vale `http://localhost:3000`. La colección crea dos tareas, guarda sus identificadores, comprueba filtros, orden, paginación, proyección, consultas, actualizaciones, errores y eliminación. Usar una base de pruebas vacía para obtener los totales esperados.
+
+Para ejecutar la misma colección automáticamente con Newman y MongoDB temporal:
+
+```bash
+npm install --no-save --package-lock=false mongodb-memory-server newman
+node scripts/test-postman.cjs
+```
+
+La base temporal se destruye al finalizar. La primera ejecución requiere internet para descargar MongoDB. Las herramientas de prueba se instalan localmente sin modificar las dependencias del proyecto.
+
+Resultado de verificación (15 de octubre de 2026): colección ejecutada con Newman contra MongoDB temporal 8.2.6, 31 peticiones y 38 aserciones, todas exitosas. No se utilizó la interfaz gráfica de Postman. Mongoose 9 emite un aviso de deprecación para `new: true`; se conserva esa opción porque es un requisito explícito del taller.

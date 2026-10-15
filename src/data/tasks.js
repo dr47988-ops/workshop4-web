@@ -3,13 +3,27 @@ const mongoose = require('mongoose');
 const Task = require('../models/Task');
 
 // Recupera todas las tareas ordenadas por fecha de creación.
-const listTasks = () => {
-    return Task.find().sort({ createdAt: 1 });
+const listTasks = async ({ filter = {}, sort = { createdAt: 1, _id: 1 }, page = 1, limit = 10, fields } = {}) => {
+    const query = Task.find(filter).sort(sort).skip((page - 1) * limit).limit(limit);
+    if (fields) query.select(fields);
+    // lean conserva exactamente la proyección sin agregar virtuales del modelo.
+    const [data, total] = await Promise.all([query.lean(), Task.countDocuments(filter)]);
+    return { data, total };
 };
+
+const validateId = (id) => {
+    if (!mongoose.isObjectIdOrHexString(id)) {
+        const error = new Error('El id debe ser un ObjectId válido');
+        error.name = 'ValidationError';
+        throw error;
+    }
+};
+
+const findTaskByTitle = (title) => Task.findOne({ title });
 
 // Busca una tarea por su ObjectId.
 const findTask = (id) => {
-    if (!mongoose.isValidObjectId(id)) return null;
+    validateId(id);
 
     return Task.findById(id);
 };
@@ -21,7 +35,7 @@ const createTask = (data) => {
 
 // Actualiza los campos enviados y ejecuta las validaciones.
 const updateTask = (id, data) => {
-    if (!mongoose.isValidObjectId(id)) return null;
+    validateId(id);
 
     const allowedFields = [
         'title',
@@ -48,13 +62,14 @@ const updateTask = (id, data) => {
 
 // Elimina una tarea por su ObjectId.
 const removeTask = (id) => {
-    if (!mongoose.isValidObjectId(id)) return null;
+    validateId(id);
 
     return Task.findByIdAndDelete(id);
 };
 
 module.exports = {
     listTasks,
+    findTaskByTitle,
     findTask,
     createTask,
     updateTask,

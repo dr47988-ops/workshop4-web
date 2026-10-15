@@ -14,6 +14,7 @@ app.get("/", (req, res) => {
         endpoints: [
             "GET /api/health",
             "GET /api/tasks",
+            "GET /api/tasks/by-title?title=Ejemplo",
             "GET /api/tasks/:id",
             "POST /api/tasks",
             "PUT /api/tasks/:id",
