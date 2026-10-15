@@ -373,3 +373,28 @@ node scripts/test-postman.cjs
 La base temporal se destruye al finalizar. La primera ejecución requiere internet para descargar MongoDB. Las herramientas de prueba se instalan localmente sin modificar las dependencias del proyecto.
 
 Resultado de verificación (15 de octubre de 2026): colección ejecutada con Newman contra MongoDB temporal 8.2.6, 31 peticiones y 38 aserciones, todas exitosas. No se utilizó la interfaz gráfica de Postman. Mongoose 9 emite un aviso de deprecación para `new: true`; se conserva esa opción porque es un requisito explícito del taller.
+
+
+## Métodos, middlewares y estadísticas (punto 6 y estadísticas del punto 7)
+
+Todo esto vive en `src/models/Task.js`, `src/data/tasks.js`, `src/controllers/tasks.js` y `src/routes/tasks.js`.
+
+- `task.markDone()` es un método del documento: pone `done` en `true` y llama a `save()`. Se usa en `PATCH /api/tasks/:id/done`, que responde 400 si el id no es válido y 404 si la tarea no existe.
+- `Task.findPending()` es un método estático que hace `find({ done: false })`. El listado lo usa cuando llega `?done=false`, y los demás filtros se siguen aplicando encima.
+- `pre("save")` pasa el título a minúsculas y deja un mensaje en la consola antes de guardar. `post("save")` imprime el ID de la tarea ya guardada. Solo se ejecutan con `save()` y `Task.create`, no con `findByIdAndUpdate` ni con `insertMany`.
+- `.lean()` ya se usa en el listado (`GET /api/tasks`): devuelve objetos planos, porque ahí solo se convierte a JSON y no se llama a `save` ni a `markDone`.
+- `GET /api/tasks/stats` devuelve cuántas tareas están pendientes, cuántas terminadas y cuántas hay por prioridad. Usa `countDocuments` y `aggregate` solo sobre la colección `tasks`. Se registra antes de `/:id` para que "stats" no se tome como un id.
+
+Ejemplo de respuesta de `GET /api/tasks/stats`:
+
+```json
+{
+  "data": {
+    "pending": 3,
+    "done": 2,
+    "byPriority": { "low": 1, "medium": 3, "high": 1 }
+  }
+}
+```
+
+Como el `pre("save")` guarda los títulos en minúsculas, `GET /api/tasks/by-title` debe buscar el título en minúsculas (por ejemplo `?title=workshop postman principal`). La colección de Postman ya está ajustada a esto y tiene pruebas nuevas para marcar como hecha, pendientes y estadísticas.

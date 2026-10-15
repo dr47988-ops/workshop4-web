@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "Workshop 4 - Consultas y CRUD",
+    "name": "Workshop 4 - Consultas, CRUD, métodos y estadísticas",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -33,7 +33,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Estado 201', () => pm.response.to.have.status(201));",
-              "pm.test('Contenido esperado', () => { const t = pm.response.json().data; pm.expect(t.title).to.eql('Workshop Postman principal'); pm.collectionVariables.set('taskId', t.id); });"
+              "pm.test('Contenido esperado', () => { const t = pm.response.json().data; pm.expect(t.title).to.eql('workshop postman principal'); pm.collectionVariables.set('taskId', t.id); });"
             ]
           }
         }
@@ -152,7 +152,7 @@
       "request": {
         "method": "GET",
         "header": [],
-        "url": "{{baseUrl}}/api/tasks/by-title?title=Workshop%20Postman%20principal"
+        "url": "{{baseUrl}}/api/tasks/by-title?title=workshop%20postman%20principal"
       },
       "event": [
         {
@@ -191,6 +191,173 @@
             "exec": [
               "pm.test('Estado 200', () => pm.response.to.have.status(200));",
               "pm.test('Contenido esperado', () => { pm.expect(pm.response.json().data.done).to.eql(true); pm.expect(pm.response.json().data.minutes).to.eql(60); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Crear tarea pendiente (título normalizado)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/tasks",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\":\"Workshop Postman PENDIENTE\",\"priority\":\"medium\",\"tags\":[\"workshop-postman\"]}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Estado 201', () => pm.response.to.have.status(201));",
+              "pm.test('Contenido esperado', () => { const t = pm.response.json().data; pm.expect(t.title).to.eql('workshop postman pendiente'); pm.expect(t.done).to.eql(false); pm.collectionVariables.set('pendingId', t.id); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pendientes con findPending",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/tasks?done=false&tag=workshop-postman"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+              "pm.test('Contenido esperado', () => { const b = pm.response.json(); pm.expect(b.total).to.eql(1); pm.expect(b.data[0]._id).to.eql(pm.collectionVariables.get('pendingId')); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Estadísticas antes",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/tasks/stats"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+              "pm.test('Contenido esperado', () => { const s = pm.response.json().data; pm.expect(s).to.have.all.keys('pending', 'done', 'byPriority'); pm.expect(s.byPriority).to.have.all.keys('low', 'medium', 'high'); pm.expect(s.pending).to.be.at.least(1); const sum = s.byPriority.low + s.byPriority.medium + s.byPriority.high; pm.expect(sum).to.eql(s.pending + s.done); pm.collectionVariables.set('pendingBefore', s.pending); pm.collectionVariables.set('doneBefore', s.done); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Marcar como hecha",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": "{{baseUrl}}/api/tasks/{{pendingId}}/done"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+              "pm.test('Contenido esperado', () => { const t = pm.response.json().data; pm.expect(t.id).to.eql(pm.collectionVariables.get('pendingId')); pm.expect(t.done).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Estadísticas después",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/tasks/stats"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+              "pm.test('Contenido esperado', () => { const s = pm.response.json().data; pm.expect(s.pending).to.eql(Number(pm.collectionVariables.get('pendingBefore')) - 1); pm.expect(s.done).to.eql(Number(pm.collectionVariables.get('doneBefore')) + 1); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sin pendientes con el tag",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/tasks?done=false&tag=workshop-postman"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+              "pm.test('Contenido esperado', () => pm.expect(pm.response.json()).to.deep.eql({data: [], total: 0}));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Marcar hecha con ObjectId inválido",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": "{{baseUrl}}/api/tasks/invalid/done"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Estado 400', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Marcar hecha tarea inexistente",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": "{{baseUrl}}/api/tasks/000000000000000000000000/done"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Estado 404', () => pm.response.to.have.status(404));"
             ]
           }
         }
@@ -569,6 +736,25 @@
             "type": "text/javascript",
             "exec": [
               "pm.test('Estado 404', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Eliminar pendiente",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{baseUrl}}/api/tasks/{{pendingId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Estado 200', () => pm.response.to.have.status(200));"
             ]
           }
         }
